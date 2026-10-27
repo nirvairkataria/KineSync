@@ -29,6 +29,7 @@
 - [Architecture](architecture.md)
 - [Mobile app](../ExpoLyrics/README.md)
 - [Desktop Bridge](../DesktopBridge/README.md)
+- [Android development build](development-build.md)
 
 <details>
 <summary><strong>Explore the implementation</strong> · Rendering, timing, storage, and native integration</summary>

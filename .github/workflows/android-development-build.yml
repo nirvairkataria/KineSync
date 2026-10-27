@@ -1,0 +1,123 @@
+# Android development build: installs as "KineSync Dev" beside the regular app.
+# It holds only the native code. Its JavaScript comes from a dev server
+# (`npx expo start --dev-client`) or from an update published by
+# eas-update.yml, so JavaScript changes need no new APK. Rebuild it only when
+# native code changes; a push that changes native code builds it here.
+#
+# To publish to your own Expo project, set the repository variables
+# EXPO_PROJECT_ID and EXPO_OWNER (Settings > Secrets and variables > Actions >
+# Variables); without them the project in ExpoLyrics/app.json is used.
+
+name: Android development build
+
+on:
+  push:
+    paths:
+      - "ExpoLyrics/package.json"
+      - "ExpoLyrics/package-lock.json"
+      - "ExpoLyrics/app.json"
+      - "ExpoLyrics/app.config.js"
+      - "ExpoLyrics/plugins/**"
+      - "ExpoLyrics/modules/**/android/**"
+      - "ExpoLyrics/modules/**/expo-module.config.json"
+      - ".github/workflows/android-development-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-development-build-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  KINESYNC_DEV_BUILD: "1"
+  KINESYNC_EAS_UPDATES: "1"
+  EXPO_PROJECT_ID: ${{ vars.EXPO_PROJECT_ID }}
+  EXPO_OWNER: ${{ vars.EXPO_OWNER }}
+
+jobs:
+  build-android-development:
+    name: Build Android development APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ExpoLyrics/package-lock.json
+
+      - name: Install JS dependencies
+        working-directory: ExpoLyrics
+        run: npm ci
+
+      - name: Setup Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Expo prebuild (Android)
+        working-directory: ExpoLyrics
+        run: npx expo prebuild --clean --platform android
+
+      # Same runner limits as the test APK build: free unused toolchains and add swap.
+      - name: Free disk space and add swap
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk/2[0-6]* \
+            /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL \
+            /usr/share/swift /usr/local/share/boost \
+            /opt/microsoft /opt/google /usr/local/share/powershell || true
+          sudo docker image prune --all --force > /dev/null 2>&1 || true
+          sudo fallocate -l 4G /swap-build
+          sudo chmod 600 /swap-build
+          sudo mkswap /swap-build
+          sudo swapon /swap-build
+
+      - name: Debug build
+        working-directory: ExpoLyrics/android
+        run: |
+          ./gradlew --no-daemon --stacktrace --max-workers=2 \
+            '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=768m' \
+            -Pkotlin.compiler.execution.strategy=in-process \
+            -PreactNativeArchitectures=arm64-v8a \
+            assembleDebug
+
+      - name: Collect APK
+        working-directory: ExpoLyrics
+        run: |
+          set -euo pipefail
+          apk="$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)"
+          test -s "${apk}"
+          cp "${apk}" KineSync-Android-dev.apk
+          sha256sum KineSync-Android-dev.apk > KineSync-Android-dev.apk.sha256
+          # Updates load only into a build with the same runtime version.
+          runtime="$(npx expo-updates runtimeversion:resolve --platform android | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(0)).runtimeVersion)")"
+          {
+            echo "### KineSync Dev (Android)"
+            echo
+            echo "Runtime version: \`${runtime}\`"
+            echo
+            echo "Install the APK from this run's artifacts. Updates published for this runtime version load into it without a new APK."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: KineSync-Android-dev-apk
+          path: |
+            ExpoLyrics/KineSync-Android-dev.apk
+            ExpoLyrics/KineSync-Android-dev.apk.sha256
+          if-no-files-found: error

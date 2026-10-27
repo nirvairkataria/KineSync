@@ -1,0 +1,102 @@
+# Publishes the app's JavaScript as an Expo update for the Android development
+# build (android-development-build.yml). Open "KineSync Dev", sign in to Expo
+# under Extensions, and pick the newest update on the "development" branch: the
+# change is on the phone in a minute, without a new APK.
+#
+# Needs the repository secret EXPO_TOKEN (expo.dev > Account settings > Access
+# tokens). Without it this workflow does nothing. For your own Expo project, set
+# the repository variables EXPO_PROJECT_ID and EXPO_OWNER as for the build.
+
+name: Expo update (development)
+
+on:
+  push:
+    paths:
+      - "ExpoLyrics/**"
+      - ".github/workflows/eas-update.yml"
+      - "!ExpoLyrics/**/*.md"
+      - "!ExpoLyrics/scripts/build-desktop-lyrics-view.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eas-update-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  KINESYNC_DEV_BUILD: "1"
+  KINESYNC_EAS_UPDATES: "1"
+  EXPO_PROJECT_ID: ${{ vars.EXPO_PROJECT_ID }}
+  EXPO_OWNER: ${{ vars.EXPO_OWNER }}
+  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+jobs:
+  publish:
+    name: Publish development update
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check for an Expo token
+        id: token
+        run: |
+          if [ -z "${EXPO_TOKEN}" ]; then
+            echo "No EXPO_TOKEN secret: skipping the update." | tee -a "${GITHUB_STEP_SUMMARY}"
+            echo "present=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "present=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Checkout
+        if: steps.token.outputs.present == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        if: steps.token.outputs.present == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ExpoLyrics/package-lock.json
+
+      - name: Install JS dependencies
+        if: steps.token.outputs.present == 'true'
+        working-directory: ExpoLyrics
+        run: npm ci
+
+      - name: Type check
+        if: steps.token.outputs.present == 'true'
+        working-directory: ExpoLyrics
+        run: npx tsc --noEmit
+
+      - name: Publish update
+        if: steps.token.outputs.present == 'true'
+        working-directory: ExpoLyrics
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || github.ref_name }}
+        run: |
+          set -euo pipefail
+          message="$(printf '%s' "${COMMIT_MESSAGE}" | head -1 | cut -c1-200)"
+          npx -y eas-cli@24.8.0 update \
+            --channel development \
+            --environment development \
+            --platform android \
+            --message "${message}" \
+            --non-interactive
+          runtime="$(npx expo-updates runtimeversion:resolve --platform android | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(0)).runtimeVersion)")"
+          {
+            echo "### Update published"
+            echo
+            echo "- ${message}"
+            echo "- Runtime version: \`${runtime}\`"
+            echo
+            echo "Open KineSync Dev > Extensions to load it. If it does not appear, the dev build has a different runtime version: run \"Android development build\" again."
+          } >> "${GITHUB_STEP_SUMMARY}"
