@@ -12,15 +12,18 @@ function withIsolatedLyricsLab(config) {
 //                          .dev), beside the regular app and its vault.
 //   KINESYNC_EAS_UPDATES=1 Turn on expo-updates so the build can load
 //                          JavaScript published with `eas update`.
-//   EXPO_PROJECT_ID, EXPO_OWNER
-//                          Another Expo project than app.json's (a fork's own).
+//   EXPO_PROJECT_ID, EXPO_OWNER, EXPO_SLUG
+//                          Another Expo project than app.json's (a fork's own):
+//                          its ID, its owner (account or team) and its slug.
 function withDevelopmentBuild(config) {
   const devBuild = process.env.KINESYNC_DEV_BUILD === '1';
   const easUpdates = process.env.KINESYNC_EAS_UPDATES === '1';
   const projectId = process.env.EXPO_PROJECT_ID || config.extra?.eas?.projectId;
   const owner = process.env.EXPO_OWNER || config.owner;
+  const slug = process.env.EXPO_SLUG || config.slug;
   return {
     ...config,
+    slug,
     ...(devBuild ? { name: `${config.name} Dev` } : {}),
     owner,
     android: { ...config.android, ...(devBuild ? { package: `${config.android.package}.dev` } : {}) },

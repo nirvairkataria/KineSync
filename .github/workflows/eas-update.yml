@@ -5,7 +5,7 @@
 #
 # Needs the repository secret EXPO_TOKEN (expo.dev > Account settings > Access
 # tokens). Without it this workflow does nothing. For your own Expo project, set
-# the repository variables EXPO_PROJECT_ID and EXPO_OWNER as for the build.
+# the repository variables EXPO_PROJECT_ID, EXPO_OWNER and EXPO_SLUG as for the build.
 
 name: Expo update (development)
 
@@ -34,6 +34,7 @@ env:
   KINESYNC_EAS_UPDATES: "1"
   EXPO_PROJECT_ID: ${{ vars.EXPO_PROJECT_ID }}
   EXPO_OWNER: ${{ vars.EXPO_OWNER }}
+  EXPO_SLUG: ${{ vars.EXPO_SLUG }}
   EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
 jobs:

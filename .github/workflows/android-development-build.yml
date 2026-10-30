@@ -5,8 +5,8 @@
 # native code changes; a push that changes native code builds it here.
 #
 # To publish to your own Expo project, set the repository variables
-# EXPO_PROJECT_ID and EXPO_OWNER (Settings > Secrets and variables > Actions >
-# Variables); without them the project in ExpoLyrics/app.json is used.
+# EXPO_PROJECT_ID, EXPO_OWNER and EXPO_SLUG (Settings > Secrets and variables >
+# Actions > Variables); without them the project in ExpoLyrics/app.json is used.
 
 name: Android development build
 
@@ -39,6 +39,7 @@ env:
   KINESYNC_EAS_UPDATES: "1"
   EXPO_PROJECT_ID: ${{ vars.EXPO_PROJECT_ID }}
   EXPO_OWNER: ${{ vars.EXPO_OWNER }}
+  EXPO_SLUG: ${{ vars.EXPO_SLUG }}
 
 jobs:
   build-android-development:

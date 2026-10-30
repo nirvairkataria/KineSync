@@ -20,9 +20,11 @@ update.
 
 1. Create a free account at [expo.dev](https://expo.dev) and a project for the
    app.
-   - On your own fork, add two repository **variables** (Settings > Secrets
-     and variables > Actions > Variables): `EXPO_PROJECT_ID` (from the
-     project's page) and `EXPO_OWNER` (your Expo username).
+   - On your own fork, add three repository **variables** (Settings > Secrets
+     and variables > Actions > Variables), all from the project's page:
+     `EXPO_PROJECT_ID`, `EXPO_OWNER` (the account or team that owns the
+     project, such as `yourname-team`) and `EXPO_SLUG` (the project's slug,
+     such as `kinesync`).
    - In the main repository, the project in `ExpoLyrics/app.json` is used.
 2. Create an access token (expo.dev > Account settings > Access tokens) and
    add it as the repository **secret** `EXPO_TOKEN`.
